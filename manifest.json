@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "柴油发动机",
+  "version": "1.0.0",
+  "description": "柴油发动机",
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["resources/jquery.min.js", "resources/injected.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "permissions": [
+    "contextMenus",
+    "tabs",
+    "notifications",
+    "storage",
+    "declarativeNetRequest",
+    "declarativeNetRequestFeedback",
+    "webRequest",
+    "webNavigation"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["resources/jquery.min.js", "content/content.js"],
+      "css": ["content/style.css"]
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <!-- import CSS -->
+  <link rel="stylesheet" href="./popup.css">
+</head>
+
+<body>
+  <div id="app">
+    <div class="info-item">
+      <label class="info-label">降价倍数</label>
+      <span class="info-span">
+        <button class="button">1</button>
+        <button class="button">5</button>
+        <button class="button">10</button>
+        <button class="button">15</button>
+        <button class="button">20</button>
+      </span>
+    </div>
+    <div class="info-item">
+      <label class="info-label">失败继续</label>
+      <span class="info-span">
+        <input id="my-checkbox" type="checkbox" name="continue">
+      </span>
+    </div>
+    <div class="info-item">
+      <label class="info-label">最低报价</label>
+      <span class="info-span">
+        <input id="lowest-price" type="text" name="lowestPrice">
+      </span>
+    </div>
+  </div>
+</body>
+
+<script src="./popup.js"></script>
+
+</html>

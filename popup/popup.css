@@ -1,0 +1,90 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  width: 400px;
+  padding: 20px;
+  height: 100px;
+}
+
+.search-container {
+  width: 100%;
+}
+
+
+.info-item {
+  width: 100%;
+  float: left;
+  margin-bottom: 20px;
+  display: flex;
+  line-height: 32px;
+}
+
+.info-item .info-label {
+  width: 70px;
+  min-width: 70px;
+  display: block;
+  text-align: right;
+  font-weight: 500;
+  font-size: 14px;
+  float: left;
+  margin-right: 6px;
+}
+
+.info-item .info-span {
+  font-weight: 500;
+  font-size: 14px;
+  display: inline;
+  flex: 1;
+}
+
+.info-item .button {
+  display: inline-block;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  color: #606266;
+  text-align: center;
+  box-sizing: border-box;
+  outline: none;
+  margin: 0;
+  transition: .1s;
+  font-weight: 500;
+  padding: 8px 14px;
+  font-size: 14px;
+  border-radius: 4px;
+  margin-right: 6px;
+}
+
+.button.active {
+  color: #fff;
+  background-color: #409eff;
+  border-color: #409eff;
+}
+.checkbox {
+  width: 15px;
+  height: 15px;
+}
+
+#lowest-price {
+  background-color: #FFF;
+  background-image: none;
+  border-radius: 4px;
+  border: 1px solid #DCDFE6;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+  color: #606266;
+  display: inline-block;
+  font-size: inherit;
+  height: 28px;
+  line-height: 28px;
+  outline: 0;
+  padding: 0 15px;
+  -webkit-transition: border-color .2scubic-bezier(.645,.045,.355,1);
+  transition: border-color .2scubic-bezier(.645,.045,.355,1);
+  width: 100%;
+}
