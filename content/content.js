@@ -117,7 +117,7 @@ function submitQuote (currentLowestPriceError) {
       let labels = targetDialog.querySelectorAll('.el-form-item__label')
       labels.forEach(v => {
         // 提示当前最低价比当前提交的要低的时候
-        if (currentLowestPriceError) {
+        if (currentLowestPriceError && isNumber(currentLowestPriceError)) {
           currentLowestPrice = Number(currentLowestPriceError)
         } else {
           if (v.textContent === '当前最低价(元)：') {
@@ -317,7 +317,7 @@ function init () {
         if (userDefineInfo.retryOnFailure === 1) {
           // "报价明细车用柴油 0的当前报价不是最低报价，报价应小于最低价5392500.00!!!"
           let str = contentContainer.textContent
-          let arr = str.split("报价应小于最低价")[1]
+          let arr = str.split("报价应小于最低价")
           if (arr[1]) {
             let currentLowestPriceError = arr[1].replace(/!/g, "")
             submitQuote(currentLowestPriceError);
