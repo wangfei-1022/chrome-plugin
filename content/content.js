@@ -10,7 +10,7 @@ injected.onload = function () {
 document.getElementsByTagName('head')[0].appendChild(injected);
 window.addEventListener('message', function (e) {
   // 输出监听的请求内容
-  console.log("插件的请求监听结果：", e.data);
+  // console.log("插件的请求监听结果：", e.data);
 });
 
 let userDefineInfo = {
@@ -153,7 +153,7 @@ function submitQuote (currentLowestPriceError) {
         console.log("数量：不是数字类型数据")
         return
       }
-      if (!isNumber(userDefineInfo.lowestPrice)) {
+      if (userDefineInfo.lowestPrice && !isNumber(userDefineInfo.lowestPrice)) {
         console.log("用户配置的降价倍数：不是数字类型数据")
         return
       }
@@ -175,7 +175,7 @@ function submitQuote (currentLowestPriceError) {
         // 拍下的价格
         let targetPrice = startPrice - discountMultiple
         // 如果设置了最低价 且当前起拍价减去 降价倍数 低于最低价则终止操作
-        if (targetPrice < userDefineInfo.lowestPrice) {
+        if (userDefineInfo.lowestPrice && targetPrice < userDefineInfo.lowestPrice) {
           insertMessageBox(`降价倍数为${discountMultiple}，提交价格为${targetPrice}，低于插件设置的最低价${userDefineInfo.lowestPrice}, 终止提交`)
           return
         }
@@ -206,7 +206,11 @@ function insertStartButton () {
   }
 
   // 获取页面上所有的按钮元素
-  const allButtons = document.querySelectorAll('button');
+  const container = document.querySelector('.ccui-app-container-detail2')
+  if(!container) {
+    return 
+  }
+  const allButtons = container.querySelectorAll('button');
 
   // 用于存储文本为“报价”的按钮的数组
   const quoteButtons = [];
@@ -214,7 +218,7 @@ function insertStartButton () {
   // 遍历所有按钮
   allButtons.forEach(button => {
     // 去除按钮文本前后的空白字符并检查是否为“报价”
-    if (button.textContent.trim() === '报价历史') {
+    if (button.textContent.trim() === '报价') {
       quoteButtons.push(button);
     }
   });
@@ -229,6 +233,8 @@ function insertStartButton () {
     filterBtn.textContent = '启动';
     // 将按钮插入到清空筛选按钮的旁边
     button.parentNode.insertBefore(filterBtn, button);
+    // 设置父元素宽度 以展示被挤压的报价历史
+    button.parentNode.style.width = '200px'
 
     // 添加点击事件
     filterBtn.addEventListener('click', function () {
@@ -278,6 +284,7 @@ function init () {
 
   chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     if (request.userDefineInfo) {
+      console.log(request.userDefineInfo)
       userDefineInfo = request.userDefineInfo
     }
   });
@@ -297,21 +304,27 @@ function init () {
   // 监听页面变化（因为可能使用了动态加载）
   const observer = new MutationObserver(function (mutations) {
     // 检查是否需要重新插入按钮
-    if (!document.querySelector('.hr-filter-btn')) {
-      insertStartButton();
+    if(document.querySelector('.ccui-app-container-detail2')) {
+       insertStartButton();
     }
 
     // 监听到是否报错 后重新提交报价
     // 报错获取到最低价继续提交
-    if (document.querySelector('.error-content')) {
-      if (userDefineInfo.retryOnFailure === 1) {
-        let str = "报价明细车用柴油 0的当前报价不是最低报价，报价应小于最低价5392500.00!!!"
-        let arr = str.split("小于最低价")[1]
-        if (arr[1]) {
-          let currentLowestPriceError = arr[1].replace(/!/g, "")
-          submitQuote(currentLowestPriceError);
+    let errorContainer = document.querySelector('.el-message el-message--error')
+    if (errorContainer) {
+      let contentContainer = errorContainer.querySelector('.el-message__content')
+      if(contentContainer) {
+        if (userDefineInfo.retryOnFailure === 1) {
+          // "报价明细车用柴油 0的当前报价不是最低报价，报价应小于最低价5392500.00!!!"
+          let str = contentContainer.textContent
+          let arr = str.split("报价应小于最低价")[1]
+          if (arr[1]) {
+            let currentLowestPriceError = arr[1].replace(/!/g, "")
+            submitQuote(currentLowestPriceError);
+          }
         }
       }
+      
     }
   });
 

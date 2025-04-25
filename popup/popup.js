@@ -50,15 +50,13 @@ document.addEventListener('DOMContentLoaded', function () {
   
   // 获取 checkbox 元素
   const lowestPrice = document.getElementById('lowest-price');
-  // 监听 change 事件
-  lowestPrice.addEventListener('change', function () {
-    // 保存设置到 storage
-    userDefineInfo.lowestPrice = this.value
-    setUserDefineInfo(userDefineInfo)
-  });
+
   // 监听 input 事件
   lowestPrice.addEventListener('input', function () {
     this.value = this.value.replace(/[^\d.]/g,'')
+    // 保存设置到 storage
+    userDefineInfo.lowestPrice = this.value
+    setUserDefineInfo(userDefineInfo)
   });
 
 

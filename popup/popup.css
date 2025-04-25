@@ -57,7 +57,7 @@ body {
   padding: 8px 14px;
   font-size: 14px;
   border-radius: 4px;
-  margin-right: 6px;
+  margin:0 6px 6px 0;
 }
 
 .button.active {
