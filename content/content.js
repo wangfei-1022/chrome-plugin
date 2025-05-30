@@ -21,11 +21,7 @@ document.getElementsByTagName('head')[0].appendChild(injected);
 window.addEventListener('message', function (e) {
   // 输出监听的请求内容
   // console.log("插件的请求监听结果：", e.data);
-
   let xhrItem = e.data
-
-  console.log(xhrItem.url)
-
   // 有值说明是通过启动开始的
   if (recordStartBtn) {
     if (xhrItem.url === 'http://localhost:9529/api/chrome/plugin/deal' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/dealSupBiddingHallQuoteMat') {
@@ -62,109 +58,63 @@ window.addEventListener('message', function (e) {
       // 超过时间则终止监听
       if (new Date().getTime() > new Date(res.data.biddingEndTime).getTime()) {
         recordStartBtn = null
-        closePriceDialog()
+        Utils.closePriceDialog()
       }
     }
   }
 });
 
-function closePriceDialog () {
-  let targetDialog = getPriceDialog()
-  let footer = targetDialog.querySelector('.el-dialog__header');
-  let closeBtn = footer.querySelector('.el-dialog__headerbtn');
-  closeBtn.click()
-}
-
-// 等待元素出现的辅助函数
-function waitForElement (selectors) {
-  if (typeof selectors === 'string') {
-    selectors = [selectors];
-  }
-
-  return new Promise(resolve => {
-    // 检查是否已存在任何一个选择器对应的元素
-    for (const selector of selectors) {
-      let element;
-      if (selector.startsWith('/')) {
-        // XPath
-        element = document.evaluate(
-          selector,
-          document,
-          null,
-          XPathResult.FIRST_ORDERED_NODE_TYPE,
-          null
-        ).singleNodeValue;
-      } else {
-        // CSS 选择器
-        element = document.querySelector(selector);
-      }
-      if (element) {
-        return resolve(element);
+// 基础工具函数
+var Utils = {
+  insertMessageBox: function (msg) {
+    // 创建消息框元素
+    const messageBox = document.createElement('div');
+    messageBox.id = 'custom-message-box';
+    messageBox.innerHTML = `
+      <p>${msg}</p>
+    `;
+    // 将消息框添加到页面
+    document.body.appendChild(messageBox);
+    setTimeout(() => {
+      messageBox.remove()
+    }, 5000)
+  },
+  closePriceDialog: function () {
+    let targetDialog = Utils.getPriceDialog()
+    let footer = targetDialog.querySelector('.el-dialog__header');
+    let closeBtn = footer.querySelector('.el-dialog__headerbtn');
+    closeBtn.click()
+  },
+  getDialogParamsText: function (node) {
+    let text = ''
+    let nextNode = node.nextElementSibling
+    if (nextNode) {
+      const firstChild = nextNode.firstElementChild;
+      if (firstChild) {
+        text = firstChild.textContent;
       }
     }
-
-    const observer = new MutationObserver(mutations => {
-      for (const selector of selectors) {
-        let element;
-        if (selector.startsWith('/')) {
-          // XPath
-          element = document.evaluate(
-            selector,
-            document,
-            null,
-            XPathResult.FIRST_ORDERED_NODE_TYPE,
-            null
-          ).singleNodeValue;
-        } else {
-          // CSS 选择器
-          element = document.querySelector(selector);
-        }
-        if (element) {
-          observer.disconnect();
-          resolve(element);
-          break;
-        }
-      }
-    });
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-  });
-}
-
-function getTargetText (node) {
-  let text = ''
-  let nextNode = node.nextElementSibling
-  if (nextNode) {
-    const firstChild = nextNode.firstElementChild;
-    if (firstChild) {
-      text = firstChild.textContent;
+    return text
+  },
+  isNumber: function (str) {
+    if (str === "" || str === undefined || typeof str === null) {
+      return false
     }
+    return !isNaN(Number(str)) && isFinite(Number(str));
+  },
+  getPriceDialog: function () {
+    const dialogList = document.querySelectorAll('.el-dialog');
+    let targetDialog = null
+    dialogList.forEach(dialog => {
+      Array.from(dialog.attributes).forEach(v => {
+        // 找到报价弹窗
+        if (v.name === 'aria-label' && v.textContent === "我要报价") {
+          targetDialog = dialog
+        }
+      })
+    });
+    return targetDialog
   }
-  return text
-}
-
-function isNumber (str) {
-  if (str === "" || str === undefined || typeof str === null) {
-    return false
-  }
-  return !isNaN(Number(str)) && isFinite(Number(str));
-}
-
-function getPriceDialog () {
-  const dialogList = document.querySelectorAll('.el-dialog');
-  let targetDialog = null
-  dialogList.forEach(dialog => {
-    Array.from(dialog.attributes).forEach(v => {
-      // 找到报价弹窗
-      if (v.name === 'aria-label' && v.textContent === "我要报价") {
-        targetDialog = dialog
-      }
-    })
-  });
-  return targetDialog
 }
 
 //  报价弹窗显示出来之后，进行提交报价操作
@@ -173,7 +123,7 @@ function submitQuote (currentLowestPriceError) {
   if (!running) {
     return
   }
-  let targetDialog = getPriceDialog()
+  let targetDialog = Utils.getPriceDialog()
 
   if (targetDialog) {
     let currentLowestPrice, startPrice, quantity, discountMultipleInput, myQuotePrice
@@ -181,22 +131,22 @@ function submitQuote (currentLowestPriceError) {
     let labels = targetDialog.querySelectorAll('.el-form-item__label')
     labels.forEach(v => {
       // 提示当前最低价比当前提交的要低的时候
-      if (currentLowestPriceError && isNumber(currentLowestPriceError)) {
+      if (currentLowestPriceError && Utils.isNumber(currentLowestPriceError)) {
         currentLowestPrice = Number(currentLowestPriceError)
       } else {
         if (v.textContent === '当前最低价(元)：') {
-          let str = getTargetText(v)
+          let str = Utils.getDialogParamsText(v)
           currentLowestPrice = Number(str.replace(/,/g, '').trim());
         }
       }
 
       if (v.textContent === '起拍单价(元)：') {
-        let str = getTargetText(v)
+        let str = Utils.getDialogParamsText(v)
         startPrice = Number(str.replace(/,/g, '').trim());
       }
 
       if (v.textContent === '数量：') {
-        let str = getTargetText(v)
+        let str = Utils.getDialogParamsText(v)
         quantity = Number(str.replace(/吨/g, '').replace(/,/g, '').trim());
       }
 
@@ -206,30 +156,30 @@ function submitQuote (currentLowestPriceError) {
 
 
       if (v.textContent === '上一轮报价(元)：') {
-        let str = getTargetText(v)
+        let str = Utils.getDialogParamsText(v)
         myQuotePrice = Number(str.replace(/,/g, '').trim());
       }
     })
 
-    if (!isNumber(currentLowestPrice)) {
+    if (!Utils.isNumber(currentLowestPrice)) {
       console.log("当前最低价(元)：不是数字类型数据")
       return
     }
-    if (!isNumber(startPrice)) {
+    if (!Utils.isNumber(startPrice)) {
       console.log("起拍单价(元)：：不是数字类型数据")
       return
     }
-    if (!isNumber(quantity)) {
+    if (!Utils.isNumber(quantity)) {
       console.log("数量：不是数字类型数据")
       return
     }
     // 获得上一轮我的报价
     // 相等则不提交
-    if (isNumber(myQuotePrice) && Number(myQuotePrice) === Number(currentLowestPrice)) {
-      insertMessageBox(`上一轮报价(元)：${myQuotePrice}，当前最低价(元)：${currentLowestPrice}, 终止提交`)
+    if (Utils.isNumber(myQuotePrice) && Number(myQuotePrice) === Number(currentLowestPrice)) {
+      Utils.insertMessageBox(`上一轮报价(元)：${myQuotePrice}，当前最低价(元)：${currentLowestPrice}, 终止提交`)
       return
     }
-    if (userDefineInfo.lowestPrice && !isNumber(userDefineInfo.lowestPrice)) {
+    if (userDefineInfo.lowestPrice && !Utils.isNumber(userDefineInfo.lowestPrice)) {
       console.log("用户配置的降价倍数：不是数字类型数据")
       return
     }
@@ -259,7 +209,7 @@ function submitQuote (currentLowestPriceError) {
       let targetPrice = startPrice - discountMultiple
       // 如果设置了最低价 且当前起拍价减去 降价倍数 低于最低价则终止操作
       if (userDefineInfo.lowestPrice && targetPrice < userDefineInfo.lowestPrice) {
-        insertMessageBox(`降价倍数为${discountMultiple}，提交价格为${targetPrice}，低于插件设置的最低价${userDefineInfo.lowestPrice}, 终止提交`)
+        Utils.insertMessageBox(`降价倍数为${discountMultiple}，提交价格为${targetPrice}，低于插件设置的最低价${userDefineInfo.lowestPrice}, 终止提交`)
         return
       }
 
@@ -278,7 +228,6 @@ function submitQuote (currentLowestPriceError) {
           }
         }
       }, 300)
-
       return true
     }
   }
@@ -310,7 +259,7 @@ function insertStartBtn (cell, button) {
     setTimeout(() => {
       recordStartBtn = null
       running = false
-      closePriceDialog()
+      Utils.closePriceDialog()
     }, 12000)
   });
 }
@@ -355,7 +304,7 @@ function tryInsertButton () {
     }
 
     // 监听弹出框被关闭则不在运行范围
-    let targetDialog = getPriceDialog()
+    let targetDialog = Utils.getPriceDialog()
     if (!targetDialog && recordStartBtn) {
       recordStartBtn.click()
     }
@@ -368,21 +317,6 @@ function tryInsertButton () {
   });
 }
 // 启动按钮的插入相关
-
-
-function insertMessageBox (msg) {
-  // 创建消息框元素
-  const messageBox = document.createElement('div');
-  messageBox.id = 'custom-message-box';
-  messageBox.innerHTML = `
-      <p>${msg}</p>
-  `;
-  // 将消息框添加到页面
-  document.body.appendChild(messageBox);
-  setTimeout(() => {
-    messageBox.remove()
-  }, 5000)
-}
 
 // 监听页面加载
 function init () {
