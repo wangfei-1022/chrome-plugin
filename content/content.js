@@ -35,9 +35,12 @@ window.addEventListener('message', function (e) {
     if ((xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/qry' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingHallMatQuote') && !running) {
       let res = JSON.parse(xhrItem.response)
 
+      // res.data.minimumPrice =  Number(res.data.minimumPrice) - 2
+      // res.data.minimumMoney = Number(res.data.minimumPrice) * Number(res.data.convNum)
       // 当有人报价比你低
       if (res.data.minimumPrice < Number(res.data.lastPriceAmount)) {
         // 执行开始
+        console.log('有人报价低，计算后提交报价进程开始！')
         running = true
         // 传入别人的最低价进行再次计算提交
         let flag = submitQuote(res.data.minimumMoney);
@@ -224,7 +227,9 @@ function submitQuote (currentLowestPriceError) {
         if (wrapper) {
           let lastConfirmBtn = wrapper.querySelector(".el-button.el-button--primary")
           if (lastConfirmBtn) {
+            // 最后的提交
             lastConfirmBtn.click()
+            console.log('最后的提交0.0')
           }
         }
       }, 300)
@@ -272,14 +277,19 @@ function insertInit () {
   }
 
   // 获取页面上所有的按钮元素
-  const container = document.querySelector('.ccui-app-container-detail2')
+  const app = document.querySelector('.ccui-app-container-detail2')
+  const container = app.querySelector('.ccui-app-container-detail-body')
   const groupTitle = container.querySelector(".group-title")
   // 寻找竞价大厅
   if (!container && groupTitle.textContent !== "竞价大厅") {
     return
   }
 
-  let tableWrapper = container.querySelector('.el-table__body-wrapper')
+  let tableCotainer = groupTitle.nextSibling
+  let tableWrapper = tableCotainer.querySelector('.el-table__body-wrapper')
+  if (!tableWrapper) {
+    return
+  }
   let table = tableWrapper.querySelector('table')
 
   const rows = table.rows;
