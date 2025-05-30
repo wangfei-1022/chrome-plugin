@@ -24,7 +24,7 @@ window.addEventListener('message', function (e) {
   let xhrItem = e.data
   // 有值说明是通过启动开始的
   if (recordStartBtn) {
-    if (xhrItem.url === 'http://localhost:9529/api/chrome/plugin/deal' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/dealSupBiddingHallQuoteMat') {
+    if (xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/deal' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/dealSupBiddingHallQuoteMat') {
       let res = JSON.parse(xhrItem.response)
       // 提交后如果设置了继续提交则还需要 再次点击报价
       if (res.code === "0") {
@@ -32,7 +32,7 @@ window.addEventListener('message', function (e) {
       }
     }
 
-    if ((xhrItem.url === 'http://localhost:9529/api/chrome/plugin/qry' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingHallMatQuote') && !running) {
+    if ((xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/qry' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingHallMatQuote') && !running) {
       let res = JSON.parse(xhrItem.response)
 
       // 当有人报价比你低
@@ -53,7 +53,7 @@ window.addEventListener('message', function (e) {
       }
     }
 
-    if (xhrItem.url === 'http://localhost:9529/api/chrome/plugin/prepare' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingBidPricePrepare') {
+    if (xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/prepare' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingBidPricePrepare') {
       let res = JSON.parse(xhrItem.response)
       // 超过时间则终止监听
       if (new Date().getTime() > new Date(res.data.biddingEndTime).getTime()) {
@@ -197,7 +197,7 @@ function submitQuote (currentLowestPriceError) {
       // 获得降价倍数
       let discountMultiple = Number(startPrice - (currentLowestPrice / quantity)) + Number(userDefineInfo.priceDiffBase)
       // 修改输入框的值
-      discountMultipleInput.value = discountMultiple;
+      discountMultipleInput.value = parseInt(discountMultiple);
       // 手动触发input事件
       discountMultipleInput.dispatchEvent(new Event('input'));
       // 手动触发change事件
