@@ -1,0 +1,31 @@
+https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingHallMatQuote
+
+
+
+{"code":"0","data":{"matDesc":"","reqUnitName":"上海航道物流有限公司","firstPlanMatDetailId":"2700018284409319424","convNum":150.00000000,"supCode":"","joinSupNum":null,"opUnitShortName":"航道物流公司","upPlanMatDetailId":null,"county":"","planName":"舟山衢山0#柴油150吨、180#燃料油（不含非石油制品）750吨（2025-5-18)","convPrice":1035000.00000000,"matClassesCode":"04010210199","schemeStatus":"3","minimumDrop":1.00,"matCodeId":"1099000000001295516","supQuoteId":null,"province":"330000","taskCode":"","planId":"2700018284375764992","supName":"","minimumPrice":6848.00,"opUnitName":"上海航道物流有限公司","matName":"车用柴油 0","firstPlanId":"2700018284375764992","convRatio":1.00000000,"supQuoteTimes":1,"opUnitId":"103912","reqUnitCode":"100001-100002-117156-101967-103731-103912-","schemeName":" 舟山衢山0#柴油150吨、180#燃料油（不含非石油制品）750吨（2025-5-18)","supNumber":"","convMeasureUnitName":"吨","convPurchaseNum":150.00000000,"planMatDetailId":"2700018284409319424","quoteTimesStr":"5次","lastPriceAmount":"6849.00","packId":null,"standardRatio":1.00000000,"taskName":"","opUnitCode":"100001-100002-117156-101967-103731-103912-","provinceName":"浙江省","supQuotePackId":null,"convExpectPrice":6900.00000000,"schemeCode":"FA00000291141","marketPrice":6900.00000000,"city":"330900","firstTaskId":null,"startMoney":1035000.00,"reqUnitId":"103912","minimumMoney":1027200.00,"planTotalNum":150.00000000,"remark":"","schemeId":"2700023108982992896","remainingQuoteTimes":"4","matQuoteTimesStr":"第6次","purchaseType":"5","convMeasureUnitCode":"01","measureUnitName":"吨","cityName":"舟山市","convMarketPrice":null,"convPriceAmount":null,"place":"衢山","deliveryDate":"2025-06-01","priceAmount":null,"countyName":"","startPrice":6900.00,"reqUnitShortName":"航道物流公司","locationName":"华东","schemeMatId":"2700023109029130240","purchaseTypeName":"邀请竞价","matBigClasses":"04","planCode":"JH00000271843","matClassesName":"车用柴油","measureUnitCode":"01","expectPrice":6900.00000000,"matQuoteTimes":6,"location":"930000","ranking":2,"purchaseNum":150.00000000,"quoteTimes":5,"supQuoteTimesStr":"第1次","packName":"","matCode":"00001295516","priceTime":null,"taskId":null},"message":"成功"}
+
+
+minimumMoney: 1027200  别人的最低价*数量的值
+
+minimumPrice: 6848 别人的最低价
+
+
+当前用户已报的价格
+
+convNum 当前数量
+lastPriceAmount 当前用户所报价格 字符串
+
+
+convNum: 150
+lastPriceAmount: "6849.00"
+
+1.
+minimumMoney: 1027200  别人的最低价*数量的值
+minimumPrice: 6848 别人的最低价
+lastPriceAmount 当前用户所报价格 字符串
+
+判断方式 minimumPrice < lastPriceAmount
+
+2.启动后 终止的方式： 增加【只控制11s。11秒后停止】 或者 【超过接口返回的截止时间】，关闭弹框
+
+
