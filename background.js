@@ -102,68 +102,64 @@ function deleteLogs () {
   };
 }
 
-function createFile (content, fileName) {
-  const blob = new Blob([content], { type: 'text/plain' });
-  const reader = new FileReader();
-  reader.onloadend = function () {
-    const dataUrl = reader.result;
-    chrome.downloads.download({
-      url: dataUrl,
-      filename: fileName,
-      saveAs: false
-    }, downloadId => {
-      if (chrome.runtime.lastError) {
-        console.error('下载日志文件失败:', chrome.runtime.lastError);
-      } else {
-        console.log('日志文件已保存，下载ID:', downloadId);
-      }
-    });
-  };
-  reader.readAsDataURL(blob);
-}
-
 // 从IndexedDB导出日志为文件
-function exportLogs () {
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(['logs'], 'readonly');
-    const objectStore = transaction.objectStore('logs');
-    const request = objectStore.getAll();
-    request.onsuccess = () => {
-      const logs = request.result;
-      const logText = logs.map(entry =>
-        `${entry.timestamp}   [${entry.source}]   ${JSON.stringify(entry.data)}`
-      ).join('\n');
-      createFile(logText, 'log.txt')
-      resolve();
+function exportLogs (targetDate) {
+  function createFile (content, fileName) {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const reader = new FileReader();
+    reader.onloadend = function () {
+      const dataUrl = reader.result;
+      chrome.downloads.download({
+        url: dataUrl,
+        filename: fileName,
+        saveAs: false
+      }, downloadId => {
+        if (chrome.runtime.lastError) {
+          console.error('下载日志文件失败:', chrome.runtime.lastError);
+        } else {
+          console.log('日志文件已保存，下载ID:', downloadId);
+        }
+      });
     };
-    request.onerror = () => reject(request.error);
-  });
-}
+    reader.readAsDataURL(blob);
+  }
 
-// 从IndexedDB导出日志为文件
-function exportLogsByDate (targetDate) {
-  const LOG_FILE_NAME = `${targetDate}.txt`;
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(['logs'], 'readonly');
     const objectStore = transaction.objectStore('logs');
-    const index = objectStore.index('date');
-    const request = index.openCursor(IDBKeyRange.only(targetDate));
-
-    let logs = [];
-    request.onsuccess = (event) => {
-      const cursor = event.target.result;
-      if (cursor) {
-        logs.push(cursor.value);
-        cursor.continue();
-      } else {
+    if (!targetDate) {
+      const LOG_FILE_NAME = 'log.txt';
+      const request = objectStore.getAll();
+      request.onsuccess = () => {
+        const logs = request.result;
         const logText = logs.map(entry =>
           `${entry.timestamp}   [${entry.source}]   ${JSON.stringify(entry.data)}`
         ).join('\n');
         createFile(logText, LOG_FILE_NAME)
         resolve();
-      }
-    };
-    request.onerror = () => reject(request.error);
+      };
+      request.onerror = () => reject(request.error);
+    } else {
+      const LOG_FILE_NAME = `${targetDate}.txt`;
+      const index = objectStore.index('date');
+      const request = index.openCursor(IDBKeyRange.only(targetDate));
+
+      let logs = [];
+      request.onsuccess = (event) => {
+        const cursor = event.target.result;
+        if (cursor) {
+          logs.push(cursor.value);
+          cursor.continue();
+        } else {
+          const logText = logs.map(entry =>
+            `${entry.timestamp}   [${entry.source}]   ${JSON.stringify(entry.data)}`
+          ).join('\n');
+          createFile(logText, LOG_FILE_NAME)
+          resolve();
+        }
+      };
+      request.onerror = () => reject(request.error);
+    }
   });
 }
 
