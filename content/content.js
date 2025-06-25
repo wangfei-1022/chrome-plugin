@@ -1,5 +1,7 @@
 console.log("content running!");
 
+let headers = {}
+
 // 向后台发送日志消息
 function logToBackground(data) {
   let date = new Date()
@@ -34,6 +36,10 @@ window.addEventListener('message', function (e) {
   // 输出监听的请求内容
   // console.log("插件的请求监听结果：", e.data);
   let xhrItem = e.data
+  if(xhrItem.url === 'https://stage.gateway.grand-trust.com/api/base-service/nfy/notify/message/unread/number') {
+    headers = xhrItem.headers
+    console.log(e, xhrItem)
+  }
   // 有值说明是通过启动开始的
   if (recordStartBtn) {
     if (xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/deal' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/dealSupBiddingHallQuoteMat') {
@@ -374,3 +380,79 @@ function init () {
 
 // 初始化
 init();
+
+
+// 在内容脚本中发送请求
+function sendRequestFromContentScript(url, options = {}) {
+  // 使用 XMLHttpRequest 发送请求
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(options.method || 'GET', url, true);
+    
+    // 设置请求头
+    if (options.headers) {
+      options.headers.forEach((v) => {
+        xhr.setRequestHeader(v.name, v.value);
+      });
+    }
+    
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === 4) {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          // 获取响应头
+          const headers = {};
+          const headerStr = xhr.getAllResponseHeaders();
+          if (headerStr) {
+            const headerLines = headerStr.trim().split(/[\r\n]+/);
+            headerLines.forEach(line => {
+              const parts = line.split(': ');
+              if (parts.length === 2) {
+                headers[parts[0]] = parts[1];
+              }
+            });
+          }
+          
+          resolve({
+            status: xhr.status,
+            statusText: xhr.statusText,
+            headers: headers,
+            body: xhr.responseText
+          });
+        } else {
+          reject(new Error(`Request failed with status ${xhr.status}`));
+        }
+      }
+    };
+    
+    xhr.onerror = function() {
+      reject(new Error('Network error occurred'));
+    };
+    
+    xhr.send(options.body || null);
+  });
+}
+
+// 使用示例
+async function testContentScriptRequest() {
+  try {
+    sendRequestFromContentScript('https://stage.gateway.grand-trust.com/api/base-service/nfy/notify/message/unread/number', {
+      method: 'GET',
+      headers: headers
+    }).then(response => {
+      console.log('Response from content script:', response);
+    });
+  } catch (error) {
+    console.error('Error in content script request:', error);
+  }
+}
+
+
+setTimeout(() => {
+  let timer = setInterval(()=> {
+  console.log(9999999999999)
+    testContentScriptRequest()
+  }, 1000)
+  setTimeout(() => {
+    clearInterval(timer)
+  }, 10000)
+}, 8000)
