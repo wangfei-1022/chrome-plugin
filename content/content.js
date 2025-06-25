@@ -1,5 +1,17 @@
 console.log("content running!");
 
+// 向后台发送日志消息
+function logToBackground(data) {
+  let date = new Date()
+  data.date = date.toISOString().slice(0, 10)
+  data.timestamp = date
+  data.source = '柴油发动机插件'
+  chrome.runtime.sendMessage({
+    action: 'log',
+    data
+  });
+}
+
 let userDefineInfo = {
   priceDiffBase: 5,
   retryOnFailure: 1,
@@ -34,7 +46,7 @@ window.addEventListener('message', function (e) {
 
     if ((xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/qry' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingHallMatQuote') && !running) {
       let res = JSON.parse(xhrItem.response)
-
+      logToBackground(res)
       // res.data.minimumPrice =  Number(res.data.minimumPrice) - 2
       // res.data.minimumMoney = Number(res.data.minimumPrice) * Number(res.data.convNum)
       // 当有人报价比你低
@@ -262,6 +274,7 @@ function insertStartBtn (cell, button) {
     // }, 1000)
     // 11 秒后
     setTimeout(() => {
+      console.log('12s了。。。')
       recordStartBtn = null
       running = false
       Utils.closePriceDialog()

@@ -25,6 +25,7 @@
     "tabs",
     "notifications",
     "storage",
+    "downloads",
     "declarativeNetRequest",
     "declarativeNetRequestFeedback",
     "webRequest",
