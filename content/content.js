@@ -1,15 +1,19 @@
 console.log("content running!");
 
 // 向后台发送日志消息
-function logToBackground(data) {
-  let date = new Date()
-  data.date = date.toISOString().slice(0, 10)
-  data.timestamp = date
-  data.source = '柴油发动机插件'
-  chrome.runtime.sendMessage({
-    action: 'log',
-    data
-  });
+function logToBackground (data) {
+  try {
+    let date = new Date()
+    data.date = date.toISOString().slice(0, 10)
+    data.timestamp = date
+    data.source = '柴油发动机插件'
+    chrome.runtime.sendMessage({
+      action: 'log',
+      data
+    });
+  } catch (error) {
+    console.log(error)
+  }
 }
 
 let userDefineInfo = {
