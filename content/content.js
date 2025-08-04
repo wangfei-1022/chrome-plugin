@@ -5,7 +5,7 @@ function logToBackground (data, operType) {
   try {
     let date = new Date()
     data.date = date.toISOString().slice(0, 10)
-    data.timestamp = date
+    data.dateTime = (Utils.timestampToDateTime(date))
     data.operType = operType
     data.pluginName = '柴油发动机插件'
     chrome.runtime.sendMessage({
@@ -44,7 +44,7 @@ window.addEventListener('message', function (e) {
   if (recordStartBtn) {
     if (xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/deal' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/dealSupBiddingHallQuoteMat') {
       let res = JSON.parse(xhrItem.response)
-      logToBackground(res, '提交报价响应内容')
+      logToBackground(res, '提交报价')
       submitNo = submitNo + 1
       // 提交后如果设置了继续提交则还需要 再次点击报价
       if (res.code === "0") {
@@ -54,7 +54,7 @@ window.addEventListener('message', function (e) {
 
     if ((xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/qry' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingHallMatQuote') && !running) {
       let res = JSON.parse(xhrItem.response)
-      logToBackground(res, '查询报价响应内容')
+      logToBackground(res, '查询报价')
       // res.data.minimumPrice =  Number(res.data.minimumPrice) - 2
       // res.data.minimumMoney = Number(res.data.minimumPrice) * Number(res.data.convNum)
       // 当有人报价比你低
@@ -69,7 +69,7 @@ window.addEventListener('message', function (e) {
           // 说明到达最后的提交，大致等待提交完成 方可进行下一次轮询
           setTimeout(() => {
             running = false
-          }, 500)
+          }, 2500)
         } else {
           running = false
         }
@@ -89,6 +89,21 @@ window.addEventListener('message', function (e) {
 
 // 基础工具函数
 var Utils = {
+  timestampToDateTime (timestamp) {
+    // 如果时间戳是秒级的，需要转换为毫秒级（乘以1000）
+    const date = new Date(timestamp.toString().length === 10 ? timestamp * 1000 : timestamp);
+
+    // 获取各时间部分
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // 月份从0开始，需要+1
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+
+    // 拼接成目标格式
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  },
   insertMessageBox: function (msg) {
     // 创建消息框元素
     const messageBox = document.createElement('div');
@@ -212,16 +227,16 @@ function submitQuote (currentLowestPriceError) {
     currentLowestPrice = Number(currentLowestPrice)
     startPrice = Number(startPrice)
     quantity = Number(quantity)
-    userDefineInfo.priceDiffBase = Number(userDefineInfo.priceDiffBase) - (submitNo === 0 ? 0 : random)
+    let priceDiffBase = Number(userDefineInfo.priceDiffBase) - (submitNo === 0 ? 0 : random)
 
     // 根据当前最低价设置降价倍数
-    console.log(currentLowestPrice, startPrice, quantity, discountMultipleInput, userDefineInfo.priceDiffBase)
+    console.log(currentLowestPrice, startPrice, quantity, discountMultipleInput, priceDiffBase)
 
-    if (currentLowestPrice && startPrice && quantity && discountMultipleInput && userDefineInfo.priceDiffBase) {
-      console.log(userDefineInfo.priceDiffBase, Number(userDefineInfo.priceDiffBase))
+    if (currentLowestPrice && startPrice && quantity && discountMultipleInput && priceDiffBase) {
+
       // 获得降价倍数
-      let discountMultiple = Number(startPrice - (currentLowestPrice / quantity)) + Number(userDefineInfo.priceDiffBase)
-     
+      let discountMultiple = Number(startPrice - (currentLowestPrice / quantity)) + Number(priceDiffBase)
+
 
       // 拍下的价格
       let targetPrice = startPrice - discountMultiple
@@ -229,7 +244,9 @@ function submitQuote (currentLowestPriceError) {
       if (userDefineInfo.lowestPrice && targetPrice < userDefineInfo.lowestPrice) {
         let newDiscountMultiple = Number(startPrice) - Number(userDefineInfo.lowestPrice)
         let msgLogInfo = {
-          msg: `降价倍数为${discountMultiple}，提交价格为${targetPrice}，低于插件设置的最低价${userDefineInfo.lowestPrice}, 以最低价对应的降价倍数${newDiscountMultiple},继续提交...`
+          data: {
+            msg: `降价倍数为${discountMultiple}，提交价格为${targetPrice}，低于插件设置的最低价${userDefineInfo.lowestPrice}, 以最低价对应的降价倍数${newDiscountMultiple},继续提交...`
+          }
         }
         logToBackground(msgLogInfo, "最低价提交")
 
@@ -245,7 +262,7 @@ function submitQuote (currentLowestPriceError) {
       // 手动触发change事件
       discountMultipleInput.dispatchEvent(new Event('change'));
 
-      console.log('根据新的最低价计算降价倍数：', discountMultiple)
+      console.log('根据新的最低价计算降价倍数：', parseInt(discountMultiple))
 
       // 触发报价按钮
       let footer = targetDialog.querySelector('.el-dialog__footer');

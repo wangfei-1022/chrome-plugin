@@ -64,7 +64,6 @@ function initDatabase () {
 
     // 创建索引（可选）
     objectStore.createIndex('date', 'date', { unique: false });
-    objectStore.createIndex('timestamp', 'timestamp', { unique: true });
     objectStore.createIndex('pluginName', 'pluginName', { unique: false });
   };
 
@@ -133,7 +132,7 @@ function exportLogs (targetDate) {
       request.onsuccess = () => {
         const logs = request.result;
         const logText = logs.map(entry =>
-          `${entry.timestamp}  [${entry.operType}]   [${entry.pluginName}]   ${JSON.stringify(entry.data)}`
+          `${entry.dateTime}  [${entry.operType}]   [${entry.pluginName}]   ${JSON.stringify(entry.data)}`
         ).join('\n');
         createFile(logText, LOG_FILE_NAME)
         resolve();
@@ -152,7 +151,7 @@ function exportLogs (targetDate) {
           cursor.continue();
         } else {
           const logText = logs.map(entry =>
-            `${entry.timestamp}   [${entry.operType}]   [${entry.pluginName}]   ${JSON.stringify(entry.data)}`
+            `${entry.dateTime}   [${entry.operType}]   [${entry.pluginName}]   ${JSON.stringify(entry.data)}`
           ).join('\n');
           createFile(logText, LOG_FILE_NAME)
           resolve();
