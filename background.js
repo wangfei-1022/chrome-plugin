@@ -2,7 +2,7 @@ console.log('Background service worker running!');
 
 // 监听来自内容脚本或其他组件的日志消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'log') {
+  if (message.source === 'log') {
     addLogToDatabase(message.data, sender);
     // 这里可以进一步处理接收到的请求信息，比如存储、分析等
     sendResponse({ status: 'ok' });
@@ -65,7 +65,7 @@ function initDatabase () {
     // 创建索引（可选）
     objectStore.createIndex('date', 'date', { unique: false });
     objectStore.createIndex('timestamp', 'timestamp', { unique: true });
-    objectStore.createIndex('source', 'source', { unique: false });
+    objectStore.createIndex('pluginName', 'pluginName', { unique: false });
   };
 
   request.onsuccess = (event) => {
@@ -133,7 +133,7 @@ function exportLogs (targetDate) {
       request.onsuccess = () => {
         const logs = request.result;
         const logText = logs.map(entry =>
-          `${entry.timestamp}   [${entry.source}]   ${JSON.stringify(entry.data)}`
+          `${entry.timestamp}  [${entry.operType}]   [${entry.pluginName}]   ${JSON.stringify(entry.data)}`
         ).join('\n');
         createFile(logText, LOG_FILE_NAME)
         resolve();
@@ -152,7 +152,7 @@ function exportLogs (targetDate) {
           cursor.continue();
         } else {
           const logText = logs.map(entry =>
-            `${entry.timestamp}   [${entry.source}]   ${JSON.stringify(entry.data)}`
+            `${entry.timestamp}   [${entry.operType}]   [${entry.pluginName}]   ${JSON.stringify(entry.data)}`
           ).join('\n');
           createFile(logText, LOG_FILE_NAME)
           resolve();

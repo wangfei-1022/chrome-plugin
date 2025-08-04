@@ -1,14 +1,15 @@
 console.log("content running!");
 
 // 向后台发送日志消息
-function logToBackground (data) {
+function logToBackground (data, operType) {
   try {
     let date = new Date()
     data.date = date.toISOString().slice(0, 10)
     data.timestamp = date
-    data.source = '柴油发动机插件'
+    data.operType = operType
+    data.pluginName = '柴油发动机插件'
     chrome.runtime.sendMessage({
-      action: 'log',
+      source: 'log',
       data
     });
   } catch (error) {
@@ -23,6 +24,7 @@ let userDefineInfo = {
 }
 
 // 当前点击的table的报价按钮
+let submitNo = 0 // 启动后的提交次数
 let recordStartBtn = null
 let running = false
 
@@ -42,6 +44,8 @@ window.addEventListener('message', function (e) {
   if (recordStartBtn) {
     if (xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/deal' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/dealSupBiddingHallQuoteMat') {
       let res = JSON.parse(xhrItem.response)
+      logToBackground(res, '提交报价响应内容')
+      submitNo = submitNo + 1
       // 提交后如果设置了继续提交则还需要 再次点击报价
       if (res.code === "0") {
         recordStartBtn.click()
@@ -50,7 +54,7 @@ window.addEventListener('message', function (e) {
 
     if ((xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/qry' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingHallMatQuote') && !running) {
       let res = JSON.parse(xhrItem.response)
-      logToBackground(res)
+      logToBackground(res, '查询报价响应内容')
       // res.data.minimumPrice =  Number(res.data.minimumPrice) - 2
       // res.data.minimumMoney = Number(res.data.minimumPrice) * Number(res.data.convNum)
       // 当有人报价比你低
@@ -203,10 +207,12 @@ function submitQuote (currentLowestPriceError) {
       return
     }
 
+    let random = Math.floor(Math.random() * 3) + 1;
+
     currentLowestPrice = Number(currentLowestPrice)
     startPrice = Number(startPrice)
     quantity = Number(quantity)
-    userDefineInfo.priceDiffBase = Number(userDefineInfo.priceDiffBase)
+    userDefineInfo.priceDiffBase = Number(userDefineInfo.priceDiffBase) - (submitNo === 0 ? 0 : random)
 
     // 根据当前最低价设置降价倍数
     console.log(currentLowestPrice, startPrice, quantity, discountMultipleInput, userDefineInfo.priceDiffBase)
@@ -215,6 +221,23 @@ function submitQuote (currentLowestPriceError) {
       console.log(userDefineInfo.priceDiffBase, Number(userDefineInfo.priceDiffBase))
       // 获得降价倍数
       let discountMultiple = Number(startPrice - (currentLowestPrice / quantity)) + Number(userDefineInfo.priceDiffBase)
+     
+
+      // 拍下的价格
+      let targetPrice = startPrice - discountMultiple
+      // 如果设置了最低价 且当前起拍价减去 降价倍数 低于最低价则终止操作
+      if (userDefineInfo.lowestPrice && targetPrice < userDefineInfo.lowestPrice) {
+        let newDiscountMultiple = Number(startPrice) - Number(userDefineInfo.lowestPrice)
+        let msgLogInfo = {
+          msg: `降价倍数为${discountMultiple}，提交价格为${targetPrice}，低于插件设置的最低价${userDefineInfo.lowestPrice}, 以最低价对应的降价倍数${newDiscountMultiple},继续提交...`
+        }
+        logToBackground(msgLogInfo, "最低价提交")
+
+        discountMultiple = newDiscountMultiple
+        // Utils.insertMessageBox()
+        // return
+      }
+
       // 修改输入框的值
       discountMultipleInput.value = parseInt(discountMultiple);
       // 手动触发input事件
@@ -223,14 +246,6 @@ function submitQuote (currentLowestPriceError) {
       discountMultipleInput.dispatchEvent(new Event('change'));
 
       console.log('根据新的最低价计算降价倍数：', discountMultiple)
-
-      // 拍下的价格
-      let targetPrice = startPrice - discountMultiple
-      // 如果设置了最低价 且当前起拍价减去 降价倍数 低于最低价则终止操作
-      if (userDefineInfo.lowestPrice && targetPrice < userDefineInfo.lowestPrice) {
-        Utils.insertMessageBox(`降价倍数为${discountMultiple}，提交价格为${targetPrice}，低于插件设置的最低价${userDefineInfo.lowestPrice}, 终止提交`)
-        return
-      }
 
       // 触发报价按钮
       let footer = targetDialog.querySelector('.el-dialog__footer');
@@ -271,6 +286,7 @@ function insertStartBtn (cell, button) {
   filterBtn.addEventListener('click', function () {
     // 触发报价按钮点击 弹出报价窗口
     button.click()
+    submitNo = 0
     recordStartBtn = button
     // 进行后续的弹窗内部操作
     // setTimeout(() => {
