@@ -172,13 +172,13 @@ function submitQuote (currentLowestPriceError) {
       if (currentLowestPriceError && Utils.isNumber(currentLowestPriceError)) {
         currentLowestPrice = Number(currentLowestPriceError)
       } else {
-        if (v.textContent === '当前最低价(元)：') {
+        if (v.textContent === '当前最低价(含税)(元)：') {
           let str = Utils.getDialogParamsText(v)
           currentLowestPrice = Number(str.replace(/,/g, '').trim());
         }
       }
 
-      if (v.textContent === '起拍单价(元)：') {
+      if (v.textContent === '起拍单价(含税)(元)：') {
         let str = Utils.getDialogParamsText(v)
         startPrice = Number(str.replace(/,/g, '').trim());
       }
@@ -193,18 +193,18 @@ function submitQuote (currentLowestPriceError) {
       }
 
 
-      if (v.textContent === '上一轮报价(元)：') {
+      if (v.textContent === '上一轮报价(含税)(元)：') {
         let str = Utils.getDialogParamsText(v)
         myQuotePrice = Number(str.replace(/,/g, '').trim());
       }
     })
 
     if (!Utils.isNumber(currentLowestPrice)) {
-      console.log("当前最低价(元)：不是数字类型数据")
+      console.log("当前最低价(含税)(元)：不是数字类型数据")
       return
     }
     if (!Utils.isNumber(startPrice)) {
-      console.log("起拍单价(元)：：不是数字类型数据")
+      console.log("起拍单价(含税)(元)：不是数字类型数据")
       return
     }
     if (!Utils.isNumber(quantity)) {
@@ -214,7 +214,7 @@ function submitQuote (currentLowestPriceError) {
     // 获得上一轮我的报价
     // 相等则不提交
     if (Utils.isNumber(myQuotePrice) && Number(myQuotePrice) === Number(currentLowestPrice)) {
-      Utils.insertMessageBox(`上一轮报价(元)：${myQuotePrice}，当前最低价(元)：${currentLowestPrice}, 终止提交`)
+      Utils.insertMessageBox(`上一轮报价(含税)(元)：${myQuotePrice}，当前最低价(含税)(元)：${currentLowestPrice}, 终止提交`)
       return
     }
     if (userDefineInfo.lowestPrice && !Utils.isNumber(userDefineInfo.lowestPrice)) {
@@ -253,6 +253,14 @@ function submitQuote (currentLowestPriceError) {
         discountMultiple = newDiscountMultiple
         // Utils.insertMessageBox()
         // return
+      } else {
+        // 正常投递
+        let msgLogInfo = {
+          data: {
+            msg: `降价倍数为${discountMultiple}，提交价格为${targetPrice}，继续提交...`
+          }
+        }
+        logToBackground(msgLogInfo, '正常报价')
       }
 
       // 修改输入框的值
@@ -328,10 +336,16 @@ function insertInit () {
 
   // 获取页面上所有的按钮元素
   const app = document.querySelector('.ccui-app-container-detail2')
+  if(!app) {
+    return
+  }
   const container = app.querySelector('.ccui-app-container-detail-body')
+  if(!container) {
+    return
+  }
   const groupTitle = container.querySelector(".group-title")
   // 寻找竞价大厅
-  if (!container && groupTitle.textContent !== "竞价大厅") {
+  if (groupTitle.textContent !== "竞价大厅") {
     return
   }
 
