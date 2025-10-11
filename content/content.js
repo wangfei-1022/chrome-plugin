@@ -76,6 +76,41 @@ window.addEventListener('message', function (e) {
       }
     }
 
+    if ((xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingHallPackageQuote') && !running) {
+      let res = JSON.parse(xhrItem.response)
+      logToBackground(res, '查询报价-方式二')
+      // res.data.minimumPrice =  Number(res.data.minimumPrice) - 2
+      // res.data.minimumMoney = Number(res.data.minimumPrice) * Number(res.data.convNum)
+      // 当有人报价比你低
+      let minimumPrice = null
+      let minimumMoney = null
+      // 启用第二套寻找方式
+      if( res.data.supMatDetailList && res.data.supMatDetailList.length) {
+        minimumPrice = res.data.supMatDetailList[0].minimumPrice
+        minimumMoney = res.data.supMatDetailList[0].minimumMoney
+      } else {
+        minimumPrice = res.data.minimumPrice
+        minimumMoney = res.data.minimumMoney
+      }
+
+      if (minimumPrice < Number(res.data.lastPriceAmount)) {
+        // 执行开始
+        console.log('有人报价低，计算后提交报价进程开始！')
+        running = true
+        // 传入别人的最低价进行再次计算提交
+        let flag = submitQuote(minimumMoney);
+        // 执行完成
+        if (flag) {
+          // 说明到达最后的提交，大致等待提交完成 方可进行下一次轮询
+          setTimeout(() => {
+            running = false
+          }, 2500)
+        } else {
+          running = false
+        }
+      }
+    }
+
     if (xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/prepare' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingBidPricePrepare') {
       let res = JSON.parse(xhrItem.response)
       // 超过时间则终止监听
@@ -164,7 +199,11 @@ function submitQuote (currentLowestPriceError) {
   let targetDialog = Utils.getPriceDialog()
 
   if (targetDialog) {
-    let currentLowestPrice, startPrice, quantity, discountMultipleInput, myQuotePrice
+    let currentLowestPrice = null
+    let startPrice = null
+    let quantity = null
+    let discountMultipleInput = null
+    let myQuotePrice = null
     // 获取最低价格
     let labels = targetDialog.querySelectorAll('.el-form-item__label')
     labels.forEach(v => {
@@ -198,6 +237,26 @@ function submitQuote (currentLowestPriceError) {
         myQuotePrice = Number(str.replace(/,/g, '').trim());
       }
     })
+
+    // 启用第二套寻找方式
+    if (discountMultipleInput === null) {
+      // 找到第一行的tr
+      let tdList = targetDialog.querySelector('.el-table__body-wrapper table tbody tr').querySelectorAll('td')
+      // 起拍单价(含税)(元)
+      if(tdList && tdList[2]) {
+        let str = tdList[2].querySelector('span').innerHTML()
+        startPrice = Number(str.replace(/,/g, '').trim());
+      }
+      // 数量
+      if(tdList && tdList[3]) {
+        let str = tdList[3].querySelector('span').innerHTML()
+        quantity = Number(str.replace(/吨/g, '').replace(/,/g, '').trim());
+      }
+      // 降价倍数
+      if(tdList && tdList[5]) {
+        discountMultipleInput = tdList[5].querySelector('input.el-input__inner')
+      }
+    }
 
     if (!Utils.isNumber(currentLowestPrice)) {
       console.log("当前最低价(含税)(元)：不是数字类型数据")
