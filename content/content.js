@@ -244,12 +244,12 @@ function submitQuote (currentLowestPriceError) {
       let tdList = targetDialog.querySelector('.el-table__body-wrapper table tbody tr').querySelectorAll('td')
       // 起拍单价(含税)(元)
       if(tdList && tdList[2]) {
-        let str = tdList[2].querySelector('span').innerHTML()
+        let str = tdList[2].querySelector('span').innerText
         startPrice = Number(str.replace(/,/g, '').trim());
       }
       // 数量
       if(tdList && tdList[3]) {
-        let str = tdList[3].querySelector('span').innerHTML()
+        let str = tdList[3].querySelector('div').innerText
         quantity = Number(str.replace(/吨/g, '').replace(/,/g, '').trim());
       }
       // 降价倍数
