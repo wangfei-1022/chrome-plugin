@@ -3,7 +3,7 @@ console.log('Background service worker running!');
 // 监听来自内容脚本或其他组件的日志消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.source === 'log') {
-    addLogToDatabase(message.data, sender);
+    logQueue.addLog(message.data, sender);
     // 这里可以进一步处理接收到的请求信息，比如存储、分析等
     sendResponse({ status: 'ok' });
     return true;
@@ -71,6 +71,7 @@ function initDatabase () {
     db = event.target.result;
     console.log('IndexedDB初始化成功');
     console.log(db)
+    logQueue.run()
   };
 
   request.onerror = (event) => {
@@ -81,12 +82,16 @@ function initDatabase () {
 // 添加日志到IndexedDB
 function addLogToDatabase (logEntry) {
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(['logs'], 'readwrite');
-    const objectStore = transaction.objectStore('logs');
-    const request = objectStore.add(logEntry);
+    if (db) {
+      const transaction = db.transaction(['logs'], 'readwrite');
+      const objectStore = transaction.objectStore('logs');
+      const request = objectStore.add(logEntry);
 
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    } else {
+      reject("DB 未初始化完成")
+    }
   });
 }
 
@@ -194,3 +199,31 @@ function getAllDates () {
 }
 
 initDatabase()
+
+// 增加日志执行队列
+let logQueue = {
+  queue: [],
+  running: false,
+  addLog (log) {
+    console.log(log)
+    this.queue.push(log);
+    if (!this.running) {
+      this.run();
+    }
+  },
+  run () {
+    if (this.running || this.queue.length === 0) {
+      return;
+    }
+    this.running = true;
+    const log = this.queue.shift();
+    addLogToDatabase(log).then(() => {
+      this.running = false;
+      this.run();
+    }, (err) => {
+      this.running = false;
+      this.run();
+      console.log('日志记录错误', log, err)
+    })
+  }
+}
