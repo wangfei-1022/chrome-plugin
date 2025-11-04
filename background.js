@@ -137,7 +137,7 @@ function exportLogs (targetDate) {
       request.onsuccess = () => {
         const logs = request.result;
         const logText = logs.map(entry =>
-          `${entry.dateTime}  [${entry.operType}]   [${entry.pluginName}]   ${JSON.stringify(entry.data)}`
+          `${entry.dateTime}  [${entry.operType}]   [${entry.pluginName}]   ${JSON.stringify(entry)}}`
         ).join('\n');
         createFile(logText, LOG_FILE_NAME)
         resolve();
@@ -156,7 +156,7 @@ function exportLogs (targetDate) {
           cursor.continue();
         } else {
           const logText = logs.map(entry =>
-            `${entry.dateTime}   [${entry.operType}]   [${entry.pluginName}]   ${JSON.stringify(entry.data)}`
+            `${entry.dateTime}   [${entry.operType}]   [${entry.pluginName}]   ${JSON.stringify(entry)}`
           ).join('\n');
           createFile(logText, LOG_FILE_NAME)
           resolve();

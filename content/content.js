@@ -48,8 +48,9 @@ function contentInit() {
     if (recordStartBtn) {
       if (xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/deal' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/dealSupBiddingHallQuoteMat') {
         let res = JSON.parse(xhrItem.response)
-        if(xhrItem.requestType === 'ERROR') {
+        if(res.code === "1") {
           logToBackground(res, '提交报价失败')
+          // 不用再次打开窗口，因为本次本身未关闭 会继续执行提交
           return
         } else {
           logToBackground(res, '提交报价成功')

@@ -26,18 +26,6 @@
           };
           window.postMessage(requestInfo, '*');
         });
-        this.addEventListener('error', function () {
-          console.error('ERROR报错', this)
-          const requestInfo = {
-            requestType: 'ERROR',
-            type: 'xhr',
-            url: url,
-            method: method,
-            status: this.status,
-            response: this.responseText
-          };
-          window.postMessage(requestInfo, '*');
-        });
     }
     open.call(this, method, url, async, user, password);
   };
