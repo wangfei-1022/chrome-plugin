@@ -1,4 +1,4 @@
-function contentInit() {
+function contentInit () {
   console.log("content running!");
 
   // 向后台发送日志消息
@@ -44,11 +44,17 @@ function contentInit() {
     // 输出监听的请求内容
     // console.log("插件的请求监听结果：", e.data);
     let xhrItem = e.data
+
+    if ((xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/getSystemCurrentTime') && !running) {
+      let res = JSON.parse(xhrItem.response)
+      logToBackground(res, '记录服务器时间')
+    }
+
     // 有值说明是通过启动开始的
     if (recordStartBtn) {
       if (xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/deal' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/dealSupBiddingHallQuoteMat') {
         let res = JSON.parse(xhrItem.response)
-        if(res.code === "1") {
+        if (res.code === "1") {
           logToBackground(res, '提交报价失败')
           // 不用再次打开窗口，因为本次本身未关闭 会继续执行提交
           return
@@ -60,11 +66,6 @@ function contentInit() {
         if (res.code === "0") {
           recordStartBtn.click()
         }
-      }
-            
-      if ((xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/getSystemCurrentTime') && !running) {
-        let res = JSON.parse(xhrItem.response)
-        logToBackground(res, '记录服务器时间')
       }
 
       if ((xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/qry' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingHallMatQuote') && !running) {
@@ -100,7 +101,7 @@ function contentInit() {
         let minimumPrice = null
         let minimumMoney = null
         // 启用第二套寻找方式
-        if( res.data.supMatDetailList && res.data.supMatDetailList.length) {
+        if (res.data.supMatDetailList && res.data.supMatDetailList.length) {
           minimumPrice = res.data.supMatDetailList[0].minimumPrice
           minimumMoney = res.data.supMatDetailList[0].minimumMoney
         } else {
@@ -258,17 +259,17 @@ function contentInit() {
         // 找到第一行的tr
         let tdList = targetDialog.querySelector('.el-table__body-wrapper table tbody tr').querySelectorAll('td')
         // 起拍单价(含税)(元)
-        if(tdList && tdList[2]) {
+        if (tdList && tdList[2]) {
           let str = tdList[2].querySelector('span').innerText
           startPrice = Number(str.replace(/,/g, '').trim());
         }
         // 数量
-        if(tdList && tdList[3]) {
+        if (tdList && tdList[3]) {
           let str = tdList[3].querySelector('div').innerText
           quantity = Number(str.replace(/吨/g, '').replace(/,/g, '').trim());
         }
         // 降价倍数
-        if(tdList && tdList[5]) {
+        if (tdList && tdList[5]) {
           discountMultipleInput = tdList[5].querySelector('input.el-input__inner')
         }
       }
@@ -410,11 +411,11 @@ function contentInit() {
 
     // 获取页面上所有的按钮元素
     const app = document.querySelector('.ccui-app-container-detail2')
-    if(!app) {
+    if (!app) {
       return
     }
     const container = app.querySelector('.ccui-app-container-detail-body')
-    if(!container) {
+    if (!container) {
       return
     }
     const groupTitle = container.querySelector(".group-title")
