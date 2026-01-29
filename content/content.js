@@ -45,7 +45,7 @@ function contentInit () {
     // console.log("插件的请求监听结果：", e.data);
     let xhrItem = e.data
 
-    if ((xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/getSystemCurrentTime') && !running) {
+    if (xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/getSystemCurrentTime') {
       let res = JSON.parse(xhrItem.response)
       logToBackground(res, '记录服务器时间')
     }
