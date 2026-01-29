@@ -8,6 +8,7 @@
       'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingHallMatQuote',
       'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingHallPackageQuote',
       'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingBidPricePrepare',
+      'https://crma.iccec.cn/apis/crma/bid/bidc/getSystemCurrentTime',
 
       'http://192.168.20.34:9529/api/chrome/plugin/qry',
       'http://192.168.20.34:9529/api/chrome/plugin/prepare',

@@ -61,6 +61,11 @@ function contentInit() {
           recordStartBtn.click()
         }
       }
+            
+      if ((xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/getSystemCurrentTime') && !running) {
+        let res = JSON.parse(xhrItem.response)
+        logToBackground(res, '记录服务器时间')
+      }
 
       if ((xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/qry' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingHallMatQuote') && !running) {
         let res = JSON.parse(xhrItem.response)
