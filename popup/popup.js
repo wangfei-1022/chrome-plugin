@@ -38,12 +38,12 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // 获取 checkbox 元素
+  // 失败后继续 获取 checkbox 元素
   const checkbox = document.getElementById('my-checkbox');
   // 监听 change 事件
   checkbox.addEventListener('change', function () {
     // 保存设置到 storage
-    userDefineInfo.retryOnFailure = this.checked ? 1 : 2
+    userDefineInfo.retryOnFailure = this.checked ? 1 : 0
     setUserDefineInfo(userDefineInfo)
   });
 

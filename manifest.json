@@ -16,8 +16,8 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["resources/jquery.min.js", "resources/injected.js"],
-      "matches": ["<all_urls>"]
+      "resources": ["resources/injected.js"],
+      "matches": ["https://crma.iccec.cn/*"]
     }
   ],
   "permissions": [
@@ -25,16 +25,17 @@
     "tabs",
     "notifications",
     "storage",
+    "downloads",
     "declarativeNetRequest",
     "declarativeNetRequestFeedback",
     "webRequest",
     "webNavigation"
   ],
-  "host_permissions": ["<all_urls>"],
+  "host_permissions": ["https://crma.iccec.cn/*"],
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["resources/jquery.min.js", "content/content.js"],
+      "matches": ["https://crma.iccec.cn/*"],
+      "js": ["content/content.js"],
       "css": ["content/style.css"]
     }
   ]

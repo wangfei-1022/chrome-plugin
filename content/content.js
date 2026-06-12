@@ -1,155 +1,245 @@
-console.log("content running!");
+function contentInit () {
+  console.log("content running!");
 
-// 代码注入到宿主页面
-var injected = document.createElement('script');
-injected.src = chrome.runtime.getURL('resources/injected.js');
-console.log('引入js脚本', injected);
-injected.onload = function () {
-  this.remove();
-};
-document.getElementsByTagName('head')[0].appendChild(injected);
-window.addEventListener('message', function (e) {
-  // 输出监听的请求内容
-  // console.log("插件的请求监听结果：", e.data);
-
-  let xhrItem = e.data
-  if (xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/dealSupBiddingHallQuoteMat') {
-    let res = JSON.parse(xhrItem.response)
-    if (userDefineInfo.retryOnFailure === 1) {
-      // "报价明细车用柴油 0的当前报价不是最低报价，报价应小于最低价5392500.00!!!"
-      let str = res.message
-      let arr = str.split("报价应小于最低价")
-      if (arr[1]) {
-        let currentLowestPriceError = arr[1].replace(/！/g, "")
-        if (isNumber(currentLowestPriceError)) {
-          console.log(currentLowestPriceError)
-          submitQuote(currentLowestPriceError);
+  // 向后台发送日志消息
+  function logToBackground (data, operType) {
+    try {
+      let date = new Date()
+      data.date = date.toISOString().slice(0, 10)
+      data.dateTime = (Utils.timestampToDateTime(date))
+      data.operType = operType
+      data.pluginName = '柴油发动机插件'
+      chrome.runtime.sendMessage({ source: 'log', data }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error("发送失败：", chrome.runtime.lastError.message);
+          return;
         }
-      }
+        // 处理响应
+      });
+    } catch (error) {
+      console.log(error)
     }
   }
-});
 
-let userDefineInfo = {
-  priceDiffBase: 5,
-  retryOnFailure: 1,
-  lowestPrice: null
-}
-
-// 等待元素出现的辅助函数
-function waitForElement (selectors) {
-  if (typeof selectors === 'string') {
-    selectors = [selectors];
+  let userDefineInfo = {
+    priceDiffBase: 5,
+    retryOnFailure: 1,
+    lowestPrice: null
   }
 
-  return new Promise(resolve => {
-    // 检查是否已存在任何一个选择器对应的元素
-    for (const selector of selectors) {
-      let element;
-      if (selector.startsWith('/')) {
-        // XPath
-        element = document.evaluate(
-          selector,
-          document,
-          null,
-          XPathResult.FIRST_ORDERED_NODE_TYPE,
-          null
-        ).singleNodeValue;
-      } else {
-        // CSS 选择器
-        element = document.querySelector(selector);
-      }
-      if (element) {
-        return resolve(element);
-      }
+  // 当前点击的table的报价按钮
+  let submitNo = 0 // 启动后的提交次数
+  let recordStartBtn = null
+  let running = false
+
+  // 代码注入到宿主页面
+  var injected = document.createElement('script');
+  injected.src = chrome.runtime.getURL('resources/injected.js');
+  console.log('引入js脚本', injected);
+  injected.onload = function () {
+    this.remove();
+  };
+  document.getElementsByTagName('head')[0].appendChild(injected);
+  window.addEventListener('message', function (e) {
+    // 输出监听的请求内容
+    // console.log("插件的请求监听结果：", e.data);
+    let xhrItem = e.data
+
+    if (xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/getSystemCurrentTime') {
+      let res = JSON.parse(xhrItem.response)
+      logToBackground(res, '记录服务器时间')
     }
 
-    const observer = new MutationObserver(mutations => {
-      for (const selector of selectors) {
-        let element;
-        if (selector.startsWith('/')) {
-          // XPath
-          element = document.evaluate(
-            selector,
-            document,
-            null,
-            XPathResult.FIRST_ORDERED_NODE_TYPE,
-            null
-          ).singleNodeValue;
+    // 有值说明是通过启动开始的
+    if (recordStartBtn) {
+      if (xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/deal' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/dealSupBiddingHallQuoteMat') {
+        let res = JSON.parse(xhrItem.response)
+        if (res.code === "1") {
+          logToBackground(res, '提交报价失败')
+          // 不用再次打开窗口，因为本次本身未关闭 会继续执行提交
+          return
         } else {
-          // CSS 选择器
-          element = document.querySelector(selector);
+          logToBackground(res, '提交报价成功')
         }
-        if (element) {
-          observer.disconnect();
-          resolve(element);
-          break;
+        submitNo = submitNo + 1
+        // 提交后如果设置了继续提交则还需要 再次点击报价
+        if (res.code === "0") {
+          recordStartBtn.click()
         }
       }
-    });
 
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
+      if ((xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/qry' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingHallMatQuote') && !running) {
+        let res = JSON.parse(xhrItem.response)
+        logToBackground(res, '查询报价')
+        // res.data.minimumPrice =  Number(res.data.minimumPrice) - 2
+        // res.data.minimumMoney = Number(res.data.minimumPrice) * Number(res.data.convNum)
+        // 当有人报价比你低
+        if (res.data.minimumPrice < Number(res.data.lastPriceAmount)) {
+          // 执行开始
+          console.log('有人报价低，计算后提交报价进程开始！')
+          running = true
+          // 传入别人的最低价进行再次计算提交
+          let flag = submitQuote(res.data.minimumMoney);
+          // 执行完成
+          if (flag) {
+            // 说明到达最后的提交，大致等待提交完成 方可进行下一次轮询
+            setTimeout(() => {
+              running = false
+            }, 2500)
+          } else {
+            running = false
+          }
+        }
+      }
+
+      if ((xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingHallPackageQuote') && !running) {
+        let res = JSON.parse(xhrItem.response)
+        logToBackground(res, '查询报价-方式二')
+        // res.data.minimumPrice =  Number(res.data.minimumPrice) - 2
+        // res.data.minimumMoney = Number(res.data.minimumPrice) * Number(res.data.convNum)
+        // 当有人报价比你低
+        let minimumPrice = null
+        let minimumMoney = null
+        // 启用第二套寻找方式
+        if (res.data.supMatDetailList && res.data.supMatDetailList.length) {
+          minimumPrice = res.data.supMatDetailList[0].minimumPrice
+          minimumMoney = res.data.supMatDetailList[0].minimumMoney
+        } else {
+          minimumPrice = res.data.minimumPrice
+          minimumMoney = res.data.minimumMoney
+        }
+
+        if (minimumPrice < Number(res.data.lastPriceAmount)) {
+          // 执行开始
+          console.log('有人报价低，计算后提交报价进程开始！')
+          running = true
+          // 传入别人的最低价进行再次计算提交
+          let flag = submitQuote(minimumMoney);
+          // 执行完成
+          if (flag) {
+            // 说明到达最后的提交，大致等待提交完成 方可进行下一次轮询
+            setTimeout(() => {
+              running = false
+            }, 2500)
+          } else {
+            running = false
+          }
+        }
+      }
+
+      if (xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/prepare' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingBidPricePrepare') {
+        let res = JSON.parse(xhrItem.response)
+        // 超过时间则终止监听
+        if (new Date().getTime() > new Date(res.data.biddingEndTime).getTime()) {
+          recordStartBtn = null
+          Utils.closePriceDialog()
+        }
+      }
+    }
   });
-}
 
-function getTargetText (node) {
-  let text = ''
-  let nextNode = node.nextElementSibling
-  if (nextNode) {
-    const firstChild = nextNode.firstElementChild;
-    if (firstChild) {
-      text = firstChild.textContent;
+  // 基础工具函数
+  var Utils = {
+    timestampToDateTime (timestamp) {
+      // 如果时间戳是秒级的，需要转换为毫秒级（乘以1000）
+      const date = new Date(timestamp.toString().length === 10 ? timestamp * 1000 : timestamp);
+
+      // 获取各时间部分
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0'); // 月份从0开始，需要+1
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+
+      // 拼接成目标格式
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    },
+    insertMessageBox: function (msg) {
+      // 创建消息框元素
+      const messageBox = document.createElement('div');
+      messageBox.id = 'custom-message-box';
+      messageBox.innerHTML = `
+        <p>${msg}</p>
+      `;
+      // 将消息框添加到页面
+      document.body.appendChild(messageBox);
+      setTimeout(() => {
+        messageBox.remove()
+      }, 5000)
+    },
+    closePriceDialog: function () {
+      let targetDialog = Utils.getPriceDialog()
+      let footer = targetDialog.querySelector('.el-dialog__header');
+      let closeBtn = footer.querySelector('.el-dialog__headerbtn');
+      closeBtn.click()
+    },
+    getDialogParamsText: function (node) {
+      let text = ''
+      let nextNode = node.nextElementSibling
+      if (nextNode) {
+        const firstChild = nextNode.firstElementChild;
+        if (firstChild) {
+          text = firstChild.textContent;
+        }
+      }
+      return text
+    },
+    isNumber: function (str) {
+      if (str === "" || str === undefined || typeof str === null) {
+        return false
+      }
+      return !isNaN(Number(str)) && isFinite(Number(str));
+    },
+    getPriceDialog: function () {
+      const dialogList = document.querySelectorAll('.el-dialog');
+      let targetDialog = null
+      dialogList.forEach(dialog => {
+        Array.from(dialog.attributes).forEach(v => {
+          // 找到报价弹窗
+          if (v.name === 'aria-label' && v.textContent === "我要报价") {
+            targetDialog = dialog
+          }
+        })
+      });
+      return targetDialog
     }
   }
-  return text
-}
 
-function isNumber (str) {
-  if (str === "" || str === undefined || typeof str === null) {
-    return false
-  }
-  return !isNaN(Number(str)) && isFinite(Number(str));
-}
+  //  报价弹窗显示出来之后，进行提交报价操作
+  function submitQuote (currentLowestPriceError) {
+    // 正在执行
+    if (!running) {
+      return
+    }
+    let targetDialog = Utils.getPriceDialog()
 
-// 提交报价
-function submitQuote (currentLowestPriceError) {
-  const dialogList = document.querySelectorAll('.el-dialog');
-  let targetDialog = null
-  dialogList.forEach(dialog => {
-    Array.from(dialog.attributes).forEach(v => {
-      // 找到报价弹窗
-      if (v.name === 'aria-label' && v.textContent === "我要报价") {
-        targetDialog = dialog
-      }
-    })
-  });
-
-  setTimeout(() => {
     if (targetDialog) {
-      let currentLowestPrice, startPrice, quantity, discountMultipleInput, myQuotePrice
+      let currentLowestPrice = null
+      let startPrice = null
+      let quantity = null
+      let discountMultipleInput = null
+      let myQuotePrice = null
       // 获取最低价格
       let labels = targetDialog.querySelectorAll('.el-form-item__label')
       labels.forEach(v => {
         // 提示当前最低价比当前提交的要低的时候
-        if (currentLowestPriceError && isNumber(currentLowestPriceError)) {
+        if (currentLowestPriceError && Utils.isNumber(currentLowestPriceError)) {
           currentLowestPrice = Number(currentLowestPriceError)
         } else {
-          if (v.textContent === '当前最低价(元)：') {
-            let str = getTargetText(v)
+          if (v.textContent === '当前最低价(含税)(元)：') {
+            let str = Utils.getDialogParamsText(v)
             currentLowestPrice = Number(str.replace(/,/g, '').trim());
           }
         }
 
-        if (v.textContent === '起拍单价(元)：') {
-          let str = getTargetText(v)
+        if (v.textContent === '起拍单价(含税)(元)：') {
+          let str = Utils.getDialogParamsText(v)
           startPrice = Number(str.replace(/,/g, '').trim());
         }
 
         if (v.textContent === '数量：') {
-          let str = getTargetText(v)
+          let str = Utils.getDialogParamsText(v)
           quantity = Number(str.replace(/吨/g, '').replace(/,/g, '').trim());
         }
 
@@ -158,61 +248,104 @@ function submitQuote (currentLowestPriceError) {
         }
 
 
-        if (v.textContent === '上一轮报价(元)：') {
-          let str = getTargetText(v)
+        if (v.textContent === '上一轮报价(含税)(元)：') {
+          let str = Utils.getDialogParamsText(v)
           myQuotePrice = Number(str.replace(/,/g, '').trim());
         }
       })
 
-      if (!isNumber(currentLowestPrice)) {
-        console.log("当前最低价(元)：不是数字类型数据")
+      // 启用第二套寻找方式
+      if (discountMultipleInput === null) {
+        // 找到第一行的tr
+        let tdList = targetDialog.querySelector('.el-table__body-wrapper table tbody tr').querySelectorAll('td')
+        // 起拍单价(含税)(元)
+        if (tdList && tdList[2]) {
+          let str = tdList[2].querySelector('span').innerText
+          startPrice = Number(str.replace(/,/g, '').trim());
+        }
+        // 数量
+        if (tdList && tdList[3]) {
+          let str = tdList[3].querySelector('div').innerText
+          quantity = Number(str.replace(/吨/g, '').replace(/,/g, '').trim());
+        }
+        // 降价倍数
+        if (tdList && tdList[5]) {
+          discountMultipleInput = tdList[5].querySelector('input.el-input__inner')
+        }
+      }
+
+      if (!Utils.isNumber(currentLowestPrice)) {
+        console.log("当前最低价(含税)(元)：不是数字类型数据")
         return
       }
-      if (!isNumber(startPrice)) {
-        console.log("起拍单价(元)：：不是数字类型数据")
+      if (!Utils.isNumber(startPrice)) {
+        console.log("起拍单价(含税)(元)：不是数字类型数据")
         return
       }
-      if (!isNumber(quantity)) {
+      if (!Utils.isNumber(quantity)) {
         console.log("数量：不是数字类型数据")
         return
       }
       // 获得上一轮我的报价
       // 相等则不提交
-      if (isNumber(myQuotePrice) && Number(myQuotePrice) === Number(currentLowestPrice)) {
-        insertMessageBox(`上一轮报价(元)：${myQuotePrice}，当前最低价(元)：${currentLowestPrice}, 终止提交`)
+      if (Utils.isNumber(myQuotePrice) && Number(myQuotePrice) === Number(currentLowestPrice)) {
+        Utils.insertMessageBox(`上一轮报价(含税)(元)：${myQuotePrice}，当前最低价(含税)(元)：${currentLowestPrice}, 终止提交`)
         return
       }
-      if (userDefineInfo.lowestPrice && !isNumber(userDefineInfo.lowestPrice)) {
+      if (userDefineInfo.lowestPrice && !Utils.isNumber(userDefineInfo.lowestPrice)) {
         console.log("用户配置的降价倍数：不是数字类型数据")
         return
       }
 
+      let random = Math.floor(Math.random() * 3) + 1;
+
       currentLowestPrice = Number(currentLowestPrice)
       startPrice = Number(startPrice)
       quantity = Number(quantity)
-      userDefineInfo.priceDiffBase = Number(userDefineInfo.priceDiffBase)
+      let priceDiffBase = Number(userDefineInfo.priceDiffBase) - (submitNo === 0 ? 0 : random)
 
       // 根据当前最低价设置降价倍数
-      if (currentLowestPrice && startPrice && quantity && discountMultipleInput && userDefineInfo.priceDiffBase) {
-        console.log(userDefineInfo.priceDiffBase, Number(userDefineInfo.priceDiffBase))
-        // 获得降价倍数
-        let discountMultiple = Number(startPrice - (currentLowestPrice / quantity)) + Number(userDefineInfo.priceDiffBase)
-        // 修改输入框的值
-        discountMultipleInput.value = discountMultiple;
-        // 手动触发input事件
-        discountMultipleInput.dispatchEvent(new Event('input'));
-        // 手动触发change事件
-        discountMultipleInput.dispatchEvent(new Event('change'));
+      console.log(currentLowestPrice, startPrice, quantity, discountMultipleInput, priceDiffBase)
 
-        console.log('根据新的最低价计算降价倍数：', discountMultiple)
+      if (currentLowestPrice && startPrice && quantity && discountMultipleInput && priceDiffBase) {
+
+        // 获得降价倍数
+        let discountMultiple = Number(startPrice - (currentLowestPrice / quantity)) + Number(priceDiffBase)
+
 
         // 拍下的价格
         let targetPrice = startPrice - discountMultiple
         // 如果设置了最低价 且当前起拍价减去 降价倍数 低于最低价则终止操作
         if (userDefineInfo.lowestPrice && targetPrice < userDefineInfo.lowestPrice) {
-          insertMessageBox(`降价倍数为${discountMultiple}，提交价格为${targetPrice}，低于插件设置的最低价${userDefineInfo.lowestPrice}, 终止提交`)
-          return
+          let newDiscountMultiple = Number(startPrice) - Number(userDefineInfo.lowestPrice)
+          let msgLogInfo = {
+            data: {
+              msg: `降价倍数为${discountMultiple}，提交价格为${targetPrice}，低于插件设置的最低价${userDefineInfo.lowestPrice}, 以最低价对应的降价倍数${newDiscountMultiple},继续提交...`
+            }
+          }
+          logToBackground(msgLogInfo, "最低价提交")
+
+          discountMultiple = newDiscountMultiple
+          // Utils.insertMessageBox()
+          // return
+        } else {
+          // 正常投递
+          let msgLogInfo = {
+            data: {
+              msg: `降价倍数为${discountMultiple}，提交价格为${targetPrice}，继续提交...`
+            }
+          }
+          logToBackground(msgLogInfo, '正常报价')
         }
+
+        // 修改输入框的值
+        discountMultipleInput.value = parseInt(discountMultiple);
+        // 手动触发input事件
+        discountMultipleInput.dispatchEvent(new Event('input'));
+        // 手动触发change事件
+        discountMultipleInput.dispatchEvent(new Event('change'));
+
+        console.log('根据新的最低价计算降价倍数：', parseInt(discountMultiple))
 
         // 触发报价按钮
         let footer = targetDialog.querySelector('.el-dialog__footer');
@@ -225,44 +358,20 @@ function submitQuote (currentLowestPriceError) {
           if (wrapper) {
             let lastConfirmBtn = wrapper.querySelector(".el-button.el-button--primary")
             if (lastConfirmBtn) {
+              // 最后的提交
               lastConfirmBtn.click()
+              console.log('最后的提交0.0')
             }
           }
-        }, 1000)
+        }, 300)
+        return true
       }
     }
-  }, 1500)
-}
-
-// 插入过滤按钮
-function insertStartButton () {
-  // 如果按钮已存在，则不重复创建
-  if (document.querySelector('.hr-filter-btn')) {
-    return true;
   }
 
-  // 获取页面上所有的按钮元素
-  const container = document.querySelector('.ccui-app-container-detail2')
-  if (!container) {
-    return
-  }
-  const allButtons = container.querySelectorAll('button');
-
-  // 用于存储文本为“报价”的按钮的数组
-  const quoteButtons = [];
-
-  // 遍历所有按钮
-  allButtons.forEach(button => {
-    // 去除按钮文本前后的空白字符并检查是否为“报价”
-    if (button.textContent.trim() === '报价') {
-      quoteButtons.push(button);
-    }
-  });
-
-  // 输出找到的按钮
-  // console.log(quoteButtons);
-
-
+  /**
+   * 启动按钮的插入相关
+   */
   function insertStartBtn (cell, button) {
     // 创建过滤按钮
     const filterBtn = document.createElement('button');
@@ -277,120 +386,126 @@ function insertStartButton () {
     filterBtn.addEventListener('click', function () {
       // 触发报价按钮点击 弹出报价窗口
       button.click()
-      submitQuote()
+      submitNo = 0
+      recordStartBtn = button
+      // 进行后续的弹窗内部操作
+      // setTimeout(() => {
+      //   submitQuote()
+      // }, 1000)
+      // 11 秒后
+      setTimeout(() => {
+        console.log('12s了。。。')
+        recordStartBtn = null
+        running = false
+        Utils.closePriceDialog()
+      }, 12000)
     });
   }
 
-  // quoteButtons.forEach(button => {
-  // insertStartBtn(button)
-  // })
-
-  let tableWrapper = container.querySelector('.el-table__body-wrapper')
-  let table = tableWrapper.querySelector('table')
-
-  const rows = table.rows;
-  Array.from(rows).forEach(row => {
-    const fourthColumnCell = row.cells[3];
-    if (fourthColumnCell) {
-      // 插入位置
-      // 插入行对应的报价按钮
-      insertStartBtn(fourthColumnCell.firstChild, row.querySelector('button'))
+  // 插入启动按钮初始化
+  function insertInit () {
+    // 如果按钮已存在，则不重复创建
+    if (document.querySelector('.hr-filter-btn')) {
+      return true;
     }
-  })
 
+    // 获取页面上所有的按钮元素
+    const app = document.querySelector('.ccui-app-container-detail2')
+    if (!app) {
+      return
+    }
+    const container = app.querySelector('.ccui-app-container-detail-body')
+    if (!container) {
+      return
+    }
+    const groupTitle = container.querySelector(".group-title")
+    // 寻找竞价大厅
+    if (groupTitle.textContent !== "竞价大厅") {
+      return
+    }
 
-  return true;
-}
+    let tableCotainer = groupTitle.nextSibling
+    let tableWrapper = tableCotainer.querySelector('.el-table__body-wrapper')
+    if (!tableWrapper) {
+      return
+    }
+    let table = tableWrapper.querySelector('table')
 
-// 修改等待元素的逻辑
-function tryInsertButton () {
-  if (!insertStartButton()) {
-    // div[text()='竞价大厅]'
-    waitForElement(["/html/body/div[1]/div[2]/div[1]/div[2]/a"]).then(() => {
-      insertStartButton();
+    const rows = table.rows;
+    Array.from(rows).forEach(row => {
+      const fourthColumnCell = row.cells[3];
+      if (fourthColumnCell) {
+        // 插入位置
+        // 插入行对应的报价按钮
+        insertStartBtn(fourthColumnCell.firstChild, row.querySelector('button'))
+      }
+    })
+
+    return true;
+  }
+  // 等待出现目标逻辑
+  function tryInsertButton () {
+    // 监听页面变化（因为可能使用了动态加载）
+    const observer = new MutationObserver(function (mutations) {
+      // 检查是否需要重新插入按钮
+      if (document.querySelector('.ccui-app-container-detail2')) {
+        insertInit();
+      }
+
+      // 监听弹出框被关闭则不在运行范围
+      let targetDialog = Utils.getPriceDialog()
+      if (!targetDialog && recordStartBtn) {
+        recordStartBtn.click()
+      }
+    });
+
+    // 开始观察页面变化
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
     });
   }
-}
+  // 启动按钮的插入相关
 
-function insertMessageBox (msg) {
-  // 创建消息框元素
-  const messageBox = document.createElement('div');
-  messageBox.id = 'custom-message-box';
-  messageBox.innerHTML = `
-      <p>${msg}</p>
-  `;
-  // 将消息框添加到页面
-  document.body.appendChild(messageBox);
-  setTimeout(() => {
-    messageBox.remove()
-  }, 5000)
-}
+  // 监听页面加载
+  function init () {
+    console.log('柴油发动机助手已加载');
 
-// 监听页面加载
-function init () {
-  console.log('柴油发动机助手已加载');
-
-  // 等待页面加载完成
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', tryInsertButton);
-  } else {
-    tryInsertButton();
-  }
-
-  chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-    if (request.userDefineInfo) {
-      console.log(request.userDefineInfo)
-      userDefineInfo = request.userDefineInfo
-    }
-  });
-
-  // 从 storage 中获取之前的设置
-  chrome.storage.local.get(['userDefineInfo'], function (result) {
-    if (result.userDefineInfo) {
-      userDefineInfo = result.userDefineInfo
+    // 等待页面加载完成
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', tryInsertButton);
     } else {
-      // 保存设置到 storage
-      chrome.storage.local.set({
-        userDefineInfo: userDefineInfo
-      });
-    }
-  });
-
-  // 监听页面变化（因为可能使用了动态加载）
-  const observer = new MutationObserver(function (mutations) {
-    // 检查是否需要重新插入按钮
-    if (document.querySelector('.ccui-app-container-detail2')) {
-      insertStartButton();
+      tryInsertButton();
     }
 
-    // 监听到是否报错 后重新提交报价
-    // 报错获取到最低价继续提交
-    //   let errorContainer = document.querySelector('.el-message.el-message--error')
+    chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+      if (request.userDefineInfo) {
+        console.log(request.userDefineInfo)
+        userDefineInfo = request.userDefineInfo
+      }
+    });
 
-    // if (errorContainer) {
-    //   let contentContainer = errorContainer.querySelector('.el-message__content')
-    //   if(contentContainer) {
-    //     if (userDefineInfo.retryOnFailure === 1) {
-    //       // "报价明细车用柴油 0的当前报价不是最低报价，报价应小于最低价5392500.00!!!"
-    //       let str = contentContainer.textContent
-    //       let arr = str.split("报价应小于最低价")
-    //       if (arr[1]) {
-    //         let currentLowestPriceError = arr[1].replace(/！/g, "")
-    //         if(isNumber(currentLowestPriceError)) {
-    //           submitQuote(currentLowestPriceError);
-    //         }
-    //       }
-    //     }
-    //   }
-    //   }
-  });
-
-  // 开始观察页面变化
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
+    // 从 storage 中获取之前的设置
+    chrome.storage.local.get(['userDefineInfo'], function (result) {
+      if (result.userDefineInfo) {
+        userDefineInfo = result.userDefineInfo
+      } else {
+        // 保存设置到 storage
+        chrome.storage.local.set({
+          userDefineInfo: userDefineInfo
+        });
+      }
+    });
+  }
+  // 初始化
+  init();
 }
 
-// 初始化
-init();
+// 等待页面加载完成
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', contentInit);
+} else {
+  contentInit();
+}
+
+
