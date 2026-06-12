@@ -220,6 +220,7 @@ function contentInit () {
       let quantity = null
       let discountMultipleInput = null
       let myQuotePrice = null
+      let minimumPriceRange = null
       // 获取最低价格
       let labels = targetDialog.querySelectorAll('.el-form-item__label')
       labels.forEach(v => {
@@ -251,6 +252,11 @@ function contentInit () {
         if (v.textContent === '上一轮报价(含税)(元)：') {
           let str = Utils.getDialogParamsText(v)
           myQuotePrice = Number(str.replace(/,/g, '').trim());
+        }
+        
+        if (v.textContent === '最小降价幅度(元)：') {
+          let str = Utils.getDialogParamsText(v)
+          minimumPriceRange = Number(str.replace(/,/g, '').trim());
         }
       })
 
@@ -286,6 +292,10 @@ function contentInit () {
         console.log("数量：不是数字类型数据")
         return
       }
+      if (!Utils.isNumber(minimumPriceRange)) {
+        console.log("最小降价幅度(元)：不是数字类型数据")
+        return
+      }
       // 获得上一轮我的报价
       // 相等则不提交
       if (Utils.isNumber(myQuotePrice) && Number(myQuotePrice) === Number(currentLowestPrice)) {
@@ -310,17 +320,17 @@ function contentInit () {
       if (currentLowestPrice && startPrice && quantity && discountMultipleInput && priceDiffBase) {
 
         // 获得降价倍数
-        let discountMultiple = Number(startPrice - (currentLowestPrice / quantity)) + Number(priceDiffBase)
+        let discountMultiple = Number((startPrice - (currentLowestPrice / quantity)) / minimumPriceRange) + Number(priceDiffBase)
 
 
         // 拍下的价格
-        let targetPrice = startPrice - discountMultiple
+        let targetPrice = startPrice - discountMultiple * minimumPriceRange
         // 如果设置了最低价 且当前起拍价减去 降价倍数 低于最低价则终止操作
         if (userDefineInfo.lowestPrice && targetPrice < userDefineInfo.lowestPrice) {
           let newDiscountMultiple = Number(startPrice) - Number(userDefineInfo.lowestPrice)
           let msgLogInfo = {
             data: {
-              msg: `降价倍数为${discountMultiple}，提交价格为${targetPrice}，低于插件设置的最低价${userDefineInfo.lowestPrice}, 以最低价对应的降价倍数${newDiscountMultiple},继续提交...`
+              msg: `降价倍数为${discountMultiple}，最小降价幅度为${minimumPriceRange}，提交价格为${targetPrice}，低于插件设置的最低价${userDefineInfo.lowestPrice}, 以最低价对应的降价倍数${newDiscountMultiple},继续提交...`
             }
           }
           logToBackground(msgLogInfo, "最低价提交")
@@ -332,7 +342,7 @@ function contentInit () {
           // 正常投递
           let msgLogInfo = {
             data: {
-              msg: `降价倍数为${discountMultiple}，提交价格为${targetPrice}，继续提交...`
+              msg: `降价倍数为${discountMultiple}，最小降价幅度为${minimumPriceRange}，提交价格为${targetPrice}，继续提交...`
             }
           }
           logToBackground(msgLogInfo, '正常报价')
