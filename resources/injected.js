@@ -10,9 +10,9 @@
       'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingBidPricePrepare',
       'https://crma.iccec.cn/apis/crma/bid/bidc/getSystemCurrentTime',
 
-      'http://192.168.20.34:9529/api/chrome/plugin/qry',
-      'http://192.168.20.34:9529/api/chrome/plugin/prepare',
-      'http://192.168.20.34:9529/api/chrome/plugin/deal'
+      'http://localhost:9529/api/chrome/plugin/qry',
+      'http://localhost:9529/api/chrome/plugin/prepare',
+      'http://localhost:9529/api/chrome/plugin/deal'
     ]
     if(arr.includes(url)) {
         console.log(url)

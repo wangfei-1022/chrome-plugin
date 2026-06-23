@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "柴油发动机",
+  "name": "汽油发动机",
   "version": "1.0.0",
-  "description": "柴油发动机",
+  "description": "汽油发动机",
   "action": {
     "default_popup": "popup/popup.html",
     "default_icon": {
@@ -17,7 +17,7 @@
   "web_accessible_resources": [
     {
       "resources": ["resources/injected.js"],
-      "matches": ["https://crma.iccec.cn/*"]
+      "matches": ["https://crma.iccec.cn/*", "http://localhost:9529/*"]
     }
   ],
   "permissions": [
@@ -31,10 +31,10 @@
     "webRequest",
     "webNavigation"
   ],
-  "host_permissions": ["https://crma.iccec.cn/*"],
+  "host_permissions": ["https://crma.iccec.cn/*", "http://localhost:9529/*"],
   "content_scripts": [
     {
-      "matches": ["https://crma.iccec.cn/*"],
+      "matches": ["https://crma.iccec.cn/*", "http://localhost:9529/*"],
       "js": ["content/content.js"],
       "css": ["content/style.css"]
     }

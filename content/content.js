@@ -8,7 +8,7 @@ function contentInit () {
       data.date = date.toISOString().slice(0, 10)
       data.dateTime = (Utils.timestampToDateTime(date))
       data.operType = operType
-      data.pluginName = '柴油发动机插件'
+      data.pluginName = '汽油发动机插件'
       chrome.runtime.sendMessage({ source: 'log', data }, (response) => {
         if (chrome.runtime.lastError) {
           console.error("发送失败：", chrome.runtime.lastError.message);
@@ -44,7 +44,6 @@ function contentInit () {
     // 输出监听的请求内容
     // console.log("插件的请求监听结果：", e.data);
     let xhrItem = e.data
-
     if (xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/getSystemCurrentTime') {
       let res = JSON.parse(xhrItem.response)
       logToBackground(res, '记录服务器时间')
@@ -52,7 +51,7 @@ function contentInit () {
 
     // 有值说明是通过启动开始的
     if (recordStartBtn) {
-      if (xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/deal' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/dealSupBiddingHallQuoteMat') {
+      if (xhrItem.url === 'http://localhost:9529/api/chrome/plugin/deal' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/dealSupBiddingHallQuoteMat') {
         let res = JSON.parse(xhrItem.response)
         if (res.code === "1") {
           logToBackground(res, '提交报价失败')
@@ -68,13 +67,13 @@ function contentInit () {
         }
       }
 
-      if ((xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/qry' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingHallMatQuote') && !running) {
+      if ((xhrItem.url === 'http://localhost:9529/api/chrome/plugin/qry' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingHallMatQuote') && !running) {
         let res = JSON.parse(xhrItem.response)
         logToBackground(res, '查询报价')
         // res.data.minimumPrice =  Number(res.data.minimumPrice) - 2
         // res.data.minimumMoney = Number(res.data.minimumPrice) * Number(res.data.convNum)
         // 当有人报价比你低
-        if (res.data.minimumPrice < Number(res.data.lastPriceAmount)) {
+        if (res.data.minimumPrice < Number(res.data.lastPriceAmount) || Number(res.data.lastPriceAmount) == 0) {
           // 执行开始
           console.log('有人报价低，计算后提交报价进程开始！')
           running = true
@@ -127,7 +126,7 @@ function contentInit () {
         }
       }
 
-      if (xhrItem.url === 'http://192.168.20.34:9529/api/chrome/plugin/prepare' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingBidPricePrepare') {
+      if (xhrItem.url === 'http://localhost:9529/api/chrome/plugin/prepare' || xhrItem.url === 'https://crma.iccec.cn/apis/crma/bid/bidc/qryBiddingBidPricePrepare') {
         let res = JSON.parse(xhrItem.response)
         // 超过时间则终止监听
         if (new Date().getTime() > new Date(res.data.biddingEndTime).getTime()) {
@@ -280,19 +279,19 @@ function contentInit () {
         }
       }
 
-      if (!Utils.isNumber(currentLowestPrice)) {
+      if (!currentLowestPrice || !Utils.isNumber(currentLowestPrice)) {
         console.log("当前最低价(含税)(元)：不是数字类型数据")
         return
       }
-      if (!Utils.isNumber(startPrice)) {
+      if (!startPrice || !Utils.isNumber(startPrice)) {
         console.log("起拍单价(含税)(元)：不是数字类型数据")
         return
       }
-      if (!Utils.isNumber(quantity)) {
+      if (!quantity || !Utils.isNumber(quantity)) {
         console.log("数量：不是数字类型数据")
         return
       }
-      if (!Utils.isNumber(minimumPriceRange)) {
+      if (!minimumPriceRange || !Utils.isNumber(minimumPriceRange)) {
         console.log("最小降价幅度(元)：不是数字类型数据")
         return
       }
@@ -312,8 +311,9 @@ function contentInit () {
       currentLowestPrice = Number(currentLowestPrice)
       startPrice = Number(startPrice)
       quantity = Number(quantity)
-      let priceDiffBase = Number(userDefineInfo.priceDiffBase) - (submitNo === 0 ? 0 : random)
-
+      // let priceDiffBase = Number(userDefineInfo.priceDiffBase) - (submitNo === 0 ? 0 : random)
+      let priceDiffBase = Number(userDefineInfo.priceDiffBase)
+      
       // 根据当前最低价设置降价倍数
       console.log(currentLowestPrice, startPrice, quantity, discountMultipleInput, priceDiffBase)
 
@@ -330,7 +330,7 @@ function contentInit () {
           let newDiscountMultiple = Number(startPrice) - Number(userDefineInfo.lowestPrice)
           let msgLogInfo = {
             data: {
-              msg: `降价倍数为${discountMultiple}，最小降价幅度为${minimumPriceRange}，提交价格为${targetPrice}，低于插件设置的最低价${userDefineInfo.lowestPrice}, 以最低价对应的降价倍数${newDiscountMultiple},继续提交...`
+              msg: `提交的降价倍数为${discountMultiple}，插件设置的降价倍数为${priceDiffBase}，最小降价幅度为${minimumPriceRange}，提交价格为${targetPrice}，低于插件设置的最低价${userDefineInfo.lowestPrice}, 以最低价对应的降价倍数${newDiscountMultiple},继续提交...`
             }
           }
           logToBackground(msgLogInfo, "最低价提交")
@@ -342,7 +342,7 @@ function contentInit () {
           // 正常投递
           let msgLogInfo = {
             data: {
-              msg: `降价倍数为${discountMultiple}，最小降价幅度为${minimumPriceRange}，提交价格为${targetPrice}，继续提交...`
+              msg: `提交的降价倍数为${discountMultiple}，插件设置的降价倍数为${priceDiffBase}，最小降价幅度为${minimumPriceRange}，提交价格为${targetPrice}，继续提交...`
             }
           }
           logToBackground(msgLogInfo, '正常报价')
@@ -479,7 +479,7 @@ function contentInit () {
 
   // 监听页面加载
   function init () {
-    console.log('柴油发动机助手已加载');
+    console.log('汽油发动机助手已加载');
 
     // 等待页面加载完成
     if (document.readyState === 'loading') {
