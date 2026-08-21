@@ -297,12 +297,14 @@ function contentInit () {
         return
       }
 
-      let random = Math.floor(Math.random() * 3) + 1;
+      let priceDiffBase = Number(userDefineInfo.priceDiffBase)
+      let rangeValue = priceDiffBase < 4 ? priceDiffBase : 4
+      let random = Math.floor(Math.random() * rangeValue);
 
       currentLowestPrice = Number(currentLowestPrice)
       startPrice = Number(startPrice)
       quantity = Number(quantity)
-      let priceDiffBase = Number(userDefineInfo.priceDiffBase) - (submitNo === 0 ? 0 : random)
+      priceDiffBase = priceDiffBase - (submitNo === 0 ? 0 : random)
 
       // 根据当前最低价设置降价倍数
       console.log(currentLowestPrice, startPrice, quantity, discountMultipleInput, priceDiffBase)
